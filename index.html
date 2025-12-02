@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全方位財務目標規劃機</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22; /* 重點橘色 */
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --secondary-text: #666;
+            --radius: 12px;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--primary-color);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        header h1 { margin: 0; font-size: 1.6rem; }
+        header p { margin: 8px 0 0; opacity: 0.8; font-size: 0.9rem; }
+
+        /* Tabs for Mode Selection */
+        .mode-tabs {
+            display: flex;
+            background: #eee;
+            padding: 5px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #7f8c8d;
+            transition: all 0.3s;
+            border-radius: 8px;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--primary-color);
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .input-section {
+            flex: 1;
+            padding: 30px;
+            min-width: 320px;
+            border-right: 1px solid #eee;
+            background: #fff;
+        }
+
+        .result-section {
+            flex: 1.5;
+            padding: 30px;
+            background-color: #fafafa;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group { margin-bottom: 20px; position: relative; }
+        
+        /* Hidden class for dynamic inputs */
+        .hidden { display: none; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        input:focus { outline: none; border-color: var(--primary-color); }
+
+        .btn-calculate {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.3s;
+        }
+        .btn-calculate:hover { opacity: 0.9; }
+
+        /* Result Styles */
+        .main-result {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        
+        .result-label { color: var(--secondary-text); font-size: 0.9rem; margin-bottom: 5px; }
+        .result-value { color: var(--accent-color); font-size: 2rem; font-weight: 700; }
+        .result-sub { font-size: 0.9rem; color: #888; margin-top: 5px; }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        @media (max-width: 768px) {
+            .content { flex-direction: column; }
+            .input-section { border-right: none; border-bottom: 1px solid #eee; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>財務目標規劃機</h1>
+        <p>正向預測與逆向回推，找到您的財富自由方程式</p>
+    </header>
+
+    <div class="mode-tabs">
+        <button class="tab-btn active" onclick="setMode('normal')">一般計算 (算時間)</button>
+        <button class="tab-btn" onclick="setMode('monthly')">回推：每月存多少</button>
+        <button class="tab-btn" onclick="setMode('rate')">回推：需要幾%報酬</button>
+        <button class="tab-btn" onclick="setMode('startAge')">回推：幾歲要開始</button>
+    </div>
+
+    <div class="content">
+        <div class="input-section">
+            
+            <div class="form-group">
+                <label>💎 資產總目標 (NT$)</label>
+                <input type="number" id="target" value="10000000">
+            </div>
+
+            <div class="form-group">
+                <label>🌱 初始投資金額 (NT$)</label>
+                <input type="number" id="initial" value="100000">
+            </div>
+
+            <div class="form-group" id="grp-monthly">
+                <label>💰 每月定期定額 (NT$)</label>
+                <input type="number" id="monthly" value="10000">
+            </div>
+
+            <div class="form-group" id="grp-rate">
+                <label>📈 年化報酬率 (%)</label>
+                <input type="number" id="rate" value="6" step="0.1">
+            </div>
+
+            <div class="form-group" id="grp-currentAge">
+                <label>🧑 目前年齡 (歲)</label>
+                <input type="number" id="currentAge" value="30">
+            </div>
+
+            <div class="form-group hidden" id="grp-targetAge">
+                <label>🏁 目標達成年齡 / 退休年齡 (歲)</label>
+                <input type="number" id="targetAge" value="65">
+            </div>
+
+            <button class="btn-calculate" onclick="calculate()">開始計算</button>
+        </div>
+
+        <div class="result-section">
+            <div id="placeholder" style="text-align: center; color: #999; margin-top: 50px;">
+                <p>請選擇模式並輸入數值<br>點擊「開始計算」查看結果</p>
+            </div>
+
+            <div id="resultBox" class="hidden">
+                <div class="main-result">
+                    <div class="result-label" id="resLabel">預計達成時間</div>
+                    <div class="result-value" id="resValue">--</div>
+                    <div class="result-sub" id="resSub">--</div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="growthChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'normal';
+    let myChart = null;
+
+    // 介面切換邏輯
+    function setMode(mode) {
+        currentMode = mode;
+        
+        // 更新 Tab 樣式
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // 顯示/隱藏欄位
+        const show = (id) => document.getElementById(id).classList.remove('hidden');
+        const hide = (id) => document.getElementById(id).classList.add('hidden');
+
+        // 重置所有
+        show('grp-monthly');
+        show('grp-rate');
+        show('grp-currentAge');
+        hide('grp-targetAge'); // 預設隱藏目標年齡
+
+        if (mode === 'normal') {
+            // 一般模式：輸入 P, PMT, r, Age -> 算 Time
+        } else if (mode === 'monthly') {
+            // 算每月：輸入 P, r, Age, TargetAge -> 算 PMT
+            hide('grp-monthly');
+            show('grp-targetAge');
+        } else if (mode === 'rate') {
+            // 算報酬：輸入 P, PMT, Age, TargetAge -> 算 r
+            hide('grp-rate');
+            show('grp-targetAge');
+        } else if (mode === 'startAge') {
+            // 算開始：輸入 P, PMT, r, TargetAge -> 算 StartAge
+            hide('grp-currentAge'); // 隱藏目前年齡，因為這是我們要算的
+            show('grp-targetAge');
+        }
+        
+        // 清空結果
+        document.getElementById('resultBox').classList.add('hidden');
+        document.getElementById('placeholder').classList.remove('hidden');
+    }
+
+    // 格式化金錢
+    const moneyFmt = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
+
+    function calculate() {
+        const target = parseFloat(document.getElementById('target').value);
+        const initial = parseFloat(document.getElementById('initial').value);
+        let monthly = parseFloat(document.getElementById('monthly').value);
+        let rate = parseFloat(document.getElementById('rate').value);
+        let currentAge = parseInt(document.getElementById('currentAge').value);
+        let targetAge = parseInt(document.getElementById('targetAge').value);
+
+        if(isNaN(target) || isNaN(initial)) return alert("請輸入正確數值");
+
+        let resultText = "";
+        let resultSubText = "";
+        let chartData = []; // {age, amount}
+
+        // --- 核心計算邏輯 ---
+
+        if (currentMode === 'normal') {
+            // 模式 1: 算多久達成
+            let n = 0; // months
+            let current = initial;
+            let monthlyRate = rate / 100 / 12;
+            
+            while(current < target && n < 1200) { // Limit 100 years
+                current = current * (1 + monthlyRate) + monthly;
+                n++;
+            }
+            let years = (n / 12).toFixed(1);
+            let finalAge = (currentAge + parseFloat(years)).toFixed(1);
+            
+            resultText = `${years} 年`;
+            resultSubText = `將在 ${finalAge} 歲達成目標`;
+            document.getElementById('resLabel').innerText = "預計所需時間";
+            
+            generateChartData(currentAge, n/12, initial, monthly, rate);
+
+        } else if (currentMode === 'monthly') {
+            // 模式 2: 算每月需存多少 (PMT)
+            // PMT = (FV - PV*(1+r)^n) / [ ((1+r)^n - 1) / r ]
+            let years = targetAge - currentAge;
+            if (years <= 0) return alert("目標年齡必須大於目前年齡");
+            
+            let n = years * 12;
+            let r = rate / 100 / 12;
+            
+            // 複利因子
+            let compoundFactor = Math.pow(1 + r, n);
+            let futureValueOfInitial = initial * compoundFactor;
+            let remainingTarget = target - futureValueOfInitial;
+            
+            if (remainingTarget <= 0) {
+                monthly = 0;
+                resultText = "無需再存";
+                resultSubText = "靠初始本金複利即可達成";
+            } else {
+                // 年金公式求 PMT
+                if (r === 0) {
+                    monthly = remainingTarget / n;
+                } else {
+                    monthly = remainingTarget * r / (compoundFactor - 1);
+                }
+                resultText = moneyFmt.format(monthly);
+                resultSubText = `從 ${currentAge} 歲存到 ${targetAge} 歲`;
+            }
+            
+            document.getElementById('resLabel').innerText = "每月需存金額";
+            generateChartData(currentAge, years, initial, monthly, rate);
+
+        } else if (currentMode === 'rate') {
+            // 模式 3: 算需要多少報酬率 (Binary Search)
+            let years = targetAge - currentAge;
+            if (years <= 0) return alert("目標年齡必須大於目前年齡");
+            
+            let low = 0, high = 100; // %
+            let foundRate = 0;
+            
+            // 二分法逼近
+            for(let i=0; i<100; i++) {
+                let mid = (low + high) / 2;
+                let r = mid / 100 / 12;
+                let n = years * 12;
+                
+                let fv = initial * Math.pow(1+r, n) + monthly * ((Math.pow(1+r, n) - 1) / r);
+                if (r === 0) fv = initial + monthly * n;
+
+                if (Math.abs(fv - target) < 1000) {
+                    foundRate = mid;
+                    break;
+                }
+                if (fv > target) high = mid;
+                else low = mid;
+                foundRate = mid;
+            }
+            
+            resultText = foundRate.toFixed(2) + " %";
+            resultSubText = `若要在 ${years} 年後達成目標`;
+            document.getElementById('resLabel').innerText = "所需年化報酬率";
+            generateChartData(currentAge, years, initial, monthly, foundRate);
+
+        } else if (currentMode === 'startAge') {
+            // 模式 4: 算最晚幾歲開始 (Back calculate time)
+            // 先算出需要幾年，再用目標年齡扣除
+            let n = 0;
+            let current = initial;
+            let monthlyRate = rate / 100 / 12;
+            
+            // 模擬直到達成目標
+            while(current < target && n < 1200) {
+                current = current * (1 + monthlyRate) + monthly;
+                n++;
+            }
+            
+            let yearsNeeded = n / 12;
+            let startAge = targetAge - yearsNeeded;
+            
+            if (startAge < 0) {
+                resultText = "不可能達成";
+                resultSubText = "即使出生就開始存也來不及";
+            } else {
+                resultText = startAge.toFixed(1) + " 歲";
+                resultSubText = `最晚需在此年齡開始，存 ${yearsNeeded.toFixed(1)} 年`;
+            }
+            
+            document.getElementById('resLabel').innerText = "最晚開始年齡";
+            // 圖表顯示從 startAge 到 targetAge
+            generateChartData(startAge, yearsNeeded, initial, monthly, rate);
+        }
+
+        // 顯示結果
+        document.getElementById('resValue').innerText = resultText;
+        document.getElementById('resSub').innerText = resultSubText;
+        document.getElementById('placeholder').classList.add('hidden');
+        document.getElementById('resultBox').classList.remove('hidden');
+    }
+
+    // 產生圖表數據
+    function generateChartData(startAge, durationYears, p, pmt, r_annual) {
+        let labels = [];
+        let data = [];
+        let current = p;
+        let r = r_annual / 100 / 12;
+        let totalMonths = Math.ceil(durationYears * 12);
+        
+        // 為了圖表美觀，取約 20-30 個點
+        let step = Math.max(1, Math.floor(totalMonths / 20));
+
+        for(let m=0; m<=totalMonths; m++) {
+            if (m % step === 0 || m === totalMonths) {
+                let currentAge = parseFloat(startAge) + (m/12);
+                labels.push(currentAge.toFixed(1));
+                data.push(current);
+            }
+            current = current * (1 + r) + pmt;
+        }
+
+        renderChart(labels, data);
+    }
+
+    function renderChart(labels, data) {
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '資產累積趨勢',
+                    data: data,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230, 126, 34, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => moneyFmt.format(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '年齡' } },
+                    y: { 
+                        ticks: { callback: (v) => v/10000 + '萬' } 
+                    }
+                }
+            }
+        });
+    }
+
+    // 初始化
+    setMode('normal');
+</script>
+
+</body>
+</html>
